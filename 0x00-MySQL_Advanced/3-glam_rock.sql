@@ -1,6 +1,6 @@
--- List bands with Glam rock style by longevity
+-- List Glam rock bands by longevity
 SELECT band_name,
-       IFNULL(YEAR('2022-01-01') - YEAR_FORMED, 0) as lifespan
+       (IFNULL(split, '2022') - formed) AS lifespan
 FROM metal_bands
-WHERE main_style = 'Glam rock'
+WHERE FIND_IN_SET('Glam rock', IFNULL(style, "")) > 0
 ORDER BY lifespan DESC, band_name;
