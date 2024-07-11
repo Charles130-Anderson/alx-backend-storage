@@ -1,6 +1,5 @@
 alx-backend-storage
 
+![image](https://github.com/Charles130-Anderson/alx-backend-storage/assets/138807102/af986cb7-0dca-492a-a72d-6bd475253c6f)
 
-
-![GIF](https://miro.medium.com/v2/resize:fit:720/format:webp/1*zpnzhqvvazmJpJLkHB3VcQ.gif)
 
