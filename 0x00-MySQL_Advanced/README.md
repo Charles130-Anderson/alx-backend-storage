@@ -1,5 +1,8 @@
 # 0x00. MySQL advanced
 
+![image](https://github.com/Charles130-Anderson/alx-backend-storage/assets/138807102/5af81f20-3692-4789-b1eb-257005635e9f)
+
+
 ## Concepts
 
 _For this project, students are expected to look at this concept:_
