@@ -1,4 +1,5 @@
 -- Rank country origins by fan count
+
 SELECT origin, SUM(*) AS nb_fans
 FROM metal_bands
 GROUP BY origin
