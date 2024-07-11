@@ -1,6 +1,7 @@
 -- Create procedure AddBonus
-DELIMITER //
+DELIMITER $$
 
+DROP PROCEDURE IF EXISTS AddBonus;
 CREATE PROCEDURE AddBonus(
     IN user_id INT,
     IN project_name VARCHAR(255),
@@ -30,6 +31,6 @@ BEGIN
     )
     WHERE id = user_id;
 
-END //
+END $$
 
 DELIMITER ;
