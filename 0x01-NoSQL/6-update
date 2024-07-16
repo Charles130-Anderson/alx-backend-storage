@@ -1,0 +1,6 @@
+// Update school document in the 'db' collection
+db.collection('school').updateOne(
+  { name: "Holberton school" }, 
+  { $set: { address: "972 Mission street" }}, 
+  { multi: true }
+);
