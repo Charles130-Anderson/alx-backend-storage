@@ -4,6 +4,7 @@ from pymongo import MongoClient
 
 HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"]
 
+
 def log_stats(collection, method_filter=None):
     """Analyze logs and print statistics."""
     total_logs = collection.count_documents({})
@@ -20,6 +21,7 @@ def log_stats(collection, method_filter=None):
 
     status_checks = collection.count_documents({"path": "/status"})
     print(f"{status_checks} status checks")
+
 
 if __name__ == "__main__":
     client = MongoClient('mongodb://127.0.0.1:27017')
