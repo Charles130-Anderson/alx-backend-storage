@@ -1,68 +1,41 @@
-import requests
+#!/usr/bin/env python3
+'''Provides tools for caching and tracking HTTP requests.
+'''
 import redis
+import requests
 from functools import wraps
-import time
+from typing import Callable
 
-# Initialize Redis connection
-redis_conn = redis.Redis()
+# Redis instance for caching
+redis_instance = redis.Redis()
+'''The Redis instance used for caching.
+'''
 
 
+def cache_data(method: Callable) -> Callable:
+    '''Decorator to cache fetched data's output.
+    '''
+    @wraps(method)
+    def wrapper(url) -> str:
+        '''Wrapper function to cache the output of data fetching.
+        '''
+        redis_instance.incr(f'count:{url}')
+        result = redis_instance.get(f'result:{url}')
+        if result:
+            return result.decode('utf-8')
+        result = method(url)
+        redis_instance.set(f'count:{url}', 0)
+        redis_instance.setex(f'result:{url}', 10, result)
+        return result
+    return wrapper
+
+
+@cache_data
 def get_page(url: str) -> str:
-    """
-    Fetches the HTML content of a URL and caches
-    it with an expiration of 10 seconds.
-
-    Args:
-        url (str): The URL to fetch HTML content from.
-
-    Returns:
-        str: The HTML content of the URL.
-    """
-    # Track access count for this URL
-    count_key = f"count:{url}"
-    redis_conn.incr(count_key)
-
-    # Check if content is cached
-    cached_content = redis_conn.get(url)
-    if cached_content:
-        return cached_content.decode('utf-8')
-
-    # Fetch the content from the URL
-    response = requests.get(url)
-    if response.status_code == 200:
-        html_content = response.text
-        # Cache the content for 10 seconds
-        redis_conn.setex(url, 10, html_content)
-        return html_content
-    else:
-        return f"Error fetching URL: {url}. " \
-               f"Status code: {response.status_code}"
-
-
-def cached(func):
-    """
-    Decorator function to cache the result of get_page with expiration time.
-
-    Args:
-        func (Callable): The function to decorate.
-
-    Returns:
-        Callable: The decorated function.
-    """
-    @wraps(func)
-    def wrapper(url):
-        # Check if content is cached
-        cached_content = redis_conn.get(url)
-        if cached_content:
-            return cached_content.decode('utf-8')
-
-        # Call the original function
-        html_content = func(url)
-        if html_content:
-            # Cache the content for 10 seconds
-            redis_conn.setex(url, 10, html_content)
-        return html_content:
-            return wrapper
+    '''Fetches the content of a URL, caches the response,
+    and tracks the request.
+    '''
+    return requests.get(url).text
 
 
 # Example usage:
