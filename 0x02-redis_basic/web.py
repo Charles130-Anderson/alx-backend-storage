@@ -1,63 +1,38 @@
 #!/usr/bin/env python3
-
-import requests
+'''A module with tools for request caching and tracking.
+'''
 import redis
+import requests
 from functools import wraps
+from typing import Callable
 
 
-store = redis.Redis(host='localhost', port=6379, db=0)
+redis_store = redis.Redis()
+'''The module-level Redis instance.
+'''
 
 
-def cache_and_count(func):
-    """
-    Decorator for caching and counting URL accesses.
-    Wraps a function to cache its return value and increment
-    an access counter in Redis for each unique URL argument.
-    """
-    @wraps(func)
-    def wrapper(url: str) -> str:
-        """
-        Checks cache for existing content; if absent, fetches,
-        caches, and counts access.
-        Args:
-            url (str): The URL to fetch content for.
-        Returns:
-            str: HTML content of the URL.
-        """
-        cached_key = f"cached:{url}"
-        count_key = f"count:{url}"
-
-        cached_content = store.get(cached_key)
-        if cached_content:
-            return cached_content.decode("utf-8")
-
-        html_content = func(url)
-
-        store.set(cached_key, html_content, ex=10)
-        store.incr(count_key)
-
-        return html_content
-
-    return wrapper
+def data_cacher(method: Callable) -> Callable:
+    '''Caches the output of fetched data.
+    '''
+    @wraps(method)
+    def invoker(url) -> str:
+        '''The wrapper function for caching the output.
+        '''
+        redis_store.incr(f'count:{url}')
+        result = redis_store.get(f'result:{url}')
+        if result:
+            return result.decode('utf-8')
+        result = method(url)
+        redis_store.set(f'count:{url}', 0)
+        redis_store.setex(f'result:{url}', 10, result)
+        return result
+    return invoker
 
 
-@cache_and_count
+@data_cacher
 def get_page(url: str) -> str:
-    """
-    Fetches HTML content of a given URL.
-    Uses the requests library to perform a GET request to the
-    specified URL and returns the HTML content.
-    """
-    response = requests.get(url)
-    return response.text
-
-
-if __name__ == "__main__":
-    url = "http://slowwly.robertomurray.co.uk"
-    print("First access:")
-    html_content = get_page(url)
-    print("Access count:", store.get(f"count:{url}").decode("utf-8"))
-
-    print("\nSecond access (should be faster due to caching):")
-    html_content = get_page(url)
-    print("Access count:", store.get(f"count:{url}").decode("utf-8"))
+    '''Returns the content of a URL after caching the request's response,
+    and tracking the request.
+    '''
+    return requests.get(url).text
