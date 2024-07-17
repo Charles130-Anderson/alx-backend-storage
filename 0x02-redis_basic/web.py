@@ -1,52 +1,63 @@
 #!/usr/bin/env python3
-'''Provides tools for caching and tracking HTTP requests.
-'''
-import redis
+
 import requests
+import redis
 from functools import wraps
-from typing import Callable
-
-# Redis instance for caching
-redis_instance = redis.Redis()
-'''The Redis instance used for caching.
-'''
 
 
-def cache_data(method: Callable) -> Callable:
-    '''Decorator to cache fetched data's output.
-    '''
-    @wraps(method)
-    def wrapper(url) -> str:
-        '''Wrapper function to cache the output of data fetching.
-        '''
-        redis_instance.incr(f'count:{url}')
-        result = redis_instance.get(f'result:{url}')
-        if result:
-            return result.decode('utf-8')
-        result = method(url)
-        redis_instance.set(f'count:{url}', 0)
-        redis_instance.setex(f'result:{url}', 10, result)
-        return result
+store = redis.Redis(host='localhost', port=6379, db=0)
+
+
+def cache_and_count(func):
+    """
+    Decorator for caching and counting URL accesses.
+    Wraps a function to cache its return value and increment
+    an access counter in Redis for each unique URL argument.
+    """
+    @wraps(func)
+    def wrapper(url: str) -> str:
+        """
+        Checks cache for existing content; if absent, fetches,
+        caches, and counts access.
+        Args:
+            url (str): The URL to fetch content for.
+        Returns:
+            str: HTML content of the URL.
+        """
+        cached_key = f"cached:{url}"
+        count_key = f"count:{url}"
+
+        cached_content = store.get(cached_key)
+        if cached_content:
+            return cached_content.decode("utf-8")
+
+        html_content = func(url)
+
+        store.set(cached_key, html_content, ex=10)
+        store.incr(count_key)
+
+        return html_content
+
     return wrapper
 
 
-@cache_data
+@cache_and_count
 def get_page(url: str) -> str:
-    '''Fetches the content of a URL, caches the response,
-    and tracks the request.
-    '''
-    return requests.get(url).text
+    """
+    Fetches HTML content of a given URL.
+    Uses the requests library to perform a GET request to the
+    specified URL and returns the HTML content.
+    """
+    response = requests.get(url)
+    return response.text
 
 
-# Example usage:
 if __name__ == "__main__":
-    # Test with a slow loading URL (simulated)
-    url = 'http://slowwly.robertomurray.co.uk/delay/5000/' \
-          'url/http://www.example.com'
-    content = get_page(url)
-    print(f"Content of {url}:")
-    print(content)
+    url = "http://slowwly.robertomurray.co.uk"
+    print("First access:")
+    html_content = get_page(url)
+    print("Access count:", store.get(f"count:{url}").decode("utf-8"))
 
-    content_cached = get_page(url)
-    print(f"Content of cached {url}:")
-    print(content_cached)
+    print("\nSecond access (should be faster due to caching):")
+    html_content = get_page(url)
+    print("Access count:", store.get(f"count:{url}").decode("utf-8"))
