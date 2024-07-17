@@ -10,31 +10,54 @@ from functools import wraps
 
 def count_calls(method: Callable) -> Callable:
     """
-    Decorator to count the number of calls to a method.
-
-    Args:
-        method (Callable): The method to be decorated.
-
-    Returns:
-        Callable: The wrapped method with call count functionality.
+    Decorator that counts how many
+    times a method is invoked.
     """
     key = method.__qualname__
 
     @wraps(method)
     def wrapper(self, *args, **kwargs):
         """
-        Wrapper function to count calls.
-
-        Args:
-            *args: Variable length argument list.
-            **kwargs: Arbitrary keyword arguments.
-
-        Returns:
-            The result of the original method.
+        Wrapper function that increments the call
+        count and returns the method result.
         """
         self._redis.incr(key)
         return method(self, *args, **kwargs)
     return wrapper
+
+
+def call_history(method: Callable) -> Callable:
+    """
+    Decorator that keeps track of
+    the history of inputs and outputs.
+    """
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        """
+        Wrapper function that logs the inputs
+        and outputs of the method.
+        """
+        self._redis.rpush(f"{method.__qualname__}:inputs", str(args))
+        output = method(self, *args, **kwargs)
+        self._redis.rpush(f"{method.__qualname__}:outputs", output)
+        return output
+    return wrapper
+
+
+def replay(method: Callable) -> None:
+    """
+    Function that displays the call
+    history of a decorated method.
+    """
+    key = method.__qualname__
+    redis = method.__self__._redis
+    count = redis.get(key).decode("utf-8")
+    inputs = redis.lrange(f"{key}:inputs", 0, -1)
+    outputs = redis.lrange(f"{key}:outputs", 0, -1)
+
+    print(f"{key} was called {count} times:")
+    for i, o in zip(inputs, outputs):
+        print(f"{key}(*{i.decode('utf-8')}) -> {o.decode('utf-8')}")
 
 
 class Cache:
